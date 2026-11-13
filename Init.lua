@@ -8,6 +8,7 @@ local function load(path)
 end
 
 local Theme = load("themes/Default.lua")
+local Spring = load("utilities/Spring.lua")
 
 local Components = {}
 
@@ -16,8 +17,7 @@ for _, name in ipairs({"Switch", "Button", "Slider"}) do
 
     Components[name] = {
         new = function(parent, config, theme)
-            -- use the passed theme, or fall back to the default for this component
-            return mod.new(parent, config, theme or Theme[name])
+            return mod.new(parent, config, theme or Theme[name], {Spring = Spring})
         end,
     }
 end
