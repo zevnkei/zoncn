@@ -10,8 +10,10 @@ local DEFAULT_THEME = {
     TweenTime = 0.15,
 }
 
-function Switch.new(parent, config, theme)
+function Switch.new(parent, config, theme, deps)
     config = config or {}
+    local Spring = deps and deps.Spring
+    assert(Spring, "Switch needs deps.Spring")
 
     local t = {}
     for k, v in pairs(DEFAULT_THEME) do t[k] = v end
@@ -28,7 +30,7 @@ function Switch.new(parent, config, theme)
     track.AutoButtonColor = false
     track.Size = UDim2.new(0, 44, 0, 24)
     track.BorderSizePixel = 0
-    track.BackgroundColor3 = t.Track
+    track.BackgroundColor3 = self.State and t.TrackOn or t.Track
     track.Parent = parent
 
     local trackCorner = Instance.new("UICorner")
@@ -36,9 +38,8 @@ function Switch.new(parent, config, theme)
     trackCorner.Parent = track
 
     local knob = Instance.new("Frame")
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
     knob.Size = UDim2.new(0, 18, 0, 18)
-    knob.AnchorPoint = Vector2.new(0, 0.5)
-    knob.Position = UDim2.new(0, 3, 0.5, 0)
     knob.BorderSizePixel = 0
     knob.BackgroundColor3 = t.Knob
     knob.Parent = track
@@ -47,14 +48,31 @@ function Switch.new(parent, config, theme)
     knobCorner.CornerRadius = UDim.new(1, 0)
     knobCorner.Parent = knob
 
+    -- knob position: 0 = left (off), 1 = right (on)
+    self.KnobX = Spring.new(self.State and 1 or 0, 260, 18)
+    -- knob width: squishes wider while pressed
+    self.KnobW = Spring.new(18, 320, 20)
+
+    self.KnobX.OnChanged = function(a)
+        knob.Position = UDim2.new(0, 12 + a * 20, 0.5, 0)
+    end
+    self.KnobW.OnChanged = function(w)
+        knob.Size = UDim2.new(0, w, 0, 18)
+    end
+    self.KnobX.OnChanged(self.KnobX.Value)
+
     self.Track = track
     self.Knob = knob
 
     track.MouseButton1Click:Connect(function()
         self:Set(not self.State)
     end)
-
-    self:Set(self.State, true) -- set initial visuals without firing callback
+    track.MouseButton1Down:Connect(function()
+        self.KnobW:SetTarget(24)
+    end)
+    track.MouseButton1Up:Connect(function()
+        self.KnobW:SetTarget(18)
+    end)
 
     return self
 end
@@ -62,12 +80,9 @@ end
 function Switch:Set(state, silent)
     self.State = state and true or false
 
+    self.KnobX:SetTarget(self.State and 1 or 0)
+
     local info = TweenInfo.new(self.Theme.TweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-    TweenService:Create(self.Knob, info, {
-        Position = self.State and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
-    }):Play()
-
     TweenService:Create(self.Track, info, {
         BackgroundColor3 = self.State and self.Theme.TrackOn or self.Theme.Track,
     }):Play()
@@ -82,6 +97,8 @@ function Switch:Get()
 end
 
 function Switch:Destroy()
+    self.KnobX:Destroy()
+    self.KnobW:Destroy()
     self.Track:Destroy()
 end
 
