@@ -11,8 +11,10 @@ local DEFAULT_THEME = {
     KnobSize = 14,
 }
 
-function Slider.new(parent, config, theme)
+function Slider.new(parent, config, theme, deps)
     config = config or {}
+    local Spring = deps and deps.Spring
+    assert(Spring, "Slider needs deps.Spring")
 
     local t = {}
     for k, v in pairs(DEFAULT_THEME) do t[k] = v end
@@ -56,9 +58,8 @@ function Slider.new(parent, config, theme)
     fillCorner.Parent = fill
 
     local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, t.KnobSize, 0, t.KnobSize)
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
-    knob.Position = UDim2.new(0, 0, 0.5, 0)
+    knob.Size = UDim2.new(0, t.KnobSize, 0, t.KnobSize)
     knob.BorderSizePixel = 0
     knob.BackgroundColor3 = t.Knob
     knob.Parent = root
@@ -72,9 +73,24 @@ function Slider.new(parent, config, theme)
     self.Fill = fill
     self.Knob = knob
 
+    -- alpha: 0 to 1 position along the track
+    local startAlpha = self:_alphaFor(self.Value)
+    self.Alpha = Spring.new(startAlpha, 300, 24)
+    self.KnobW = Spring.new(t.KnobSize, 360, 22)
+
+    self.Alpha.OnChanged = function(a)
+        fill.Size = UDim2.new(a, 0, 1, 0)
+        knob.Position = UDim2.new(a, 0, 0.5, 0)
+    end
+    self.KnobW.OnChanged = function(w)
+        knob.Size = UDim2.new(0, w, 0, t.KnobSize)
+    end
+    self.Alpha.OnChanged(startAlpha)
+
     table.insert(self.Connections, root.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             self.Dragging = true
+            self.KnobW:SetTarget(t.KnobSize * 1.3)
             self:_setFromX(input.Position.X)
         end
     end))
@@ -87,13 +103,22 @@ function Slider.new(parent, config, theme)
 
     table.insert(self.Connections, UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            self.Dragging = false
+            if self.Dragging then
+                self.Dragging = false
+                self.KnobW:SetTarget(t.KnobSize)
+            end
         end
     end))
 
-    self:Set(config.Default or self.Min, true)
+    self.Spring = Spring
+    self.ThemeSize = t.KnobSize
 
     return self
+end
+
+function Slider:_alphaFor(value)
+    local range = self.Max - self.Min
+    return range > 0 and (value - self.Min) / range or 0
 end
 
 function Slider:_setFromX(x)
@@ -114,12 +139,7 @@ function Slider:Set(value, silent)
     end
 
     self.Value = value
-
-    local range = self.Max - self.Min
-    local alpha = range > 0 and (value - self.Min) / range or 0
-
-    self.Fill.Size = UDim2.new(alpha, 0, 1, 0)
-    self.Knob.Position = UDim2.new(alpha, 0, 0.5, 0)
+    self.Alpha:SetTarget(self:_alphaFor(value))
 
     if not silent then
         self.Callback(value)
@@ -134,6 +154,8 @@ function Slider:Destroy()
     for _, conn in ipairs(self.Connections) do
         conn:Disconnect()
     end
+    self.Alpha:Destroy()
+    self.KnobW:Destroy()
     self.Root:Destroy()
 end
 
