@@ -12,13 +12,14 @@ local Theme = load("themes/Default.lua")
 local deps = {
     Spring = load("utilities/Spring.lua"),
     Modal = load("utilities/Modal.lua"),
+    TextFit = load("utilities/TextFit.lua"),
     OutsideClick = load("utilities/OutsideClick.lua"),
     Icons = load("utilities/Icons.lua"),
 }
 
 local Components = {}
 
-for _, name in ipairs({"Switch", "Checkbox", "Button", "Dialog", "Slider", "DropdownMenu", "Segment", "Toast", "Label"}) do
+for _, name in ipairs({"Switch", "Checkbox", "Button", "Dialog", "Slider", "DropdownMenu", "Input", "TextArea", "Segment", "Toast", "Label"}) do
     local mod = load("components/" .. name .. ".lua")
 
     Components[name] = {
