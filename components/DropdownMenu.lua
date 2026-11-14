@@ -5,26 +5,16 @@ DropdownMenu.__index = DropdownMenu
 
 local DEFAULT_THEME = {
     Background = Color3.fromRGB(20, 20, 20),
-    BackgroundTransparency = 0.1,
     Foreground = Color3.fromRGB(240, 245, 240),
-    Muted = Color3.fromRGB(150, 150, 150),
     Hover = Color3.fromRGB(35, 35, 35),
-    Stroke = Color3.fromRGB(255, 255, 255),
-    StrokeTransparency = 0.9,
     Font = Enum.Font.GothamMedium,
-    TextSize = 14,
     Corner = 20,
     ItemCorner = 8,
     ItemHeight = 32,
-    ItemGap = 5,
-    Margin = 24, -- keep this far from the screen edges
-    Gap = 6, -- space between the anchor and the popup
-    Padding = 16, -- total vertical padding (top + bottom)
-    SidePadding = 8,
-    OpenScale = 0.95, -- scale it grows from / shrinks to
-    TweenTime = 0.2, -- open / close / resize
-    PageTime = 0.18, -- slide between pages
-    HoverTime = 0.1,
+    Margin = 24,
+    Gap = 6,
+    Padding = 8,
+    TweenTime = 0.25,
 }
 
 local function merge(base, over)
@@ -34,105 +24,58 @@ local function merge(base, over)
     return out
 end
 
-local function round(n)
-    return math.floor(n + 0.5)
-end
-
--- all popups live in one full-screen host inside the ScreenGui, so they are
--- never clipped or pushed around by whatever container the anchor sits in
-local function getHost(parent)
-    local root = parent
-    if not parent:IsA("ScreenGui") then
-        root = parent:FindFirstAncestorWhichIsA("ScreenGui") or parent
-    end
-
-    local host = root:FindFirstChild("zoncn-popups")
-    if not host then
-        host = Instance.new("Frame")
-        host.Name = "zoncn-popups"
-        host.Size = UDim2.fromScale(1, 1)
-        host.BackgroundTransparency = 1
-        host.BorderSizePixel = 0
-        host.ZIndex = 10
-        host.Parent = root
-    end
-
-    return host
-end
-
 function DropdownMenu.new(parent, config, theme, deps)
     config = config or {}
     assert(config.Anchor, "DropdownMenu needs config.Anchor")
-    assert(deps and deps.OutsideClick, "DropdownMenu needs deps.OutsideClick")
+    assert(deps and deps.Modal and deps.OutsideClick, "DropdownMenu needs deps.Modal and deps.OutsideClick")
 
     local t = merge(DEFAULT_THEME, theme)
     local self = setmetatable({}, DropdownMenu)
-    self.Theme = t
+    self.Parent = parent
     self.Anchor = config.Anchor
     self.Width = config.Width or 200
     self.HasChild = config.Child or false
-    self.CloseOnClick = config.CloseOnClick ~= false
     self.OnMain = config.OnMain or function() end
-    self.Host = getHost(parent)
+    self.Theme = t
+    self.Modal = deps.Modal
+    self.OutsideClick = deps.OutsideClick
+    self.ModalCfg = {}
     self.Open = false
     self.OnChild = false
     self.OpenedAt = 0
     self.ClosedAt = 0
-    self.Token = 0
-    self.Destroyed = false
-    self.Last = {}
-    self.Orders = {}
+    self.LastSize = nil
+    self.LastPosition = nil
     self.Connections = {}
 
-    -- CanvasGroup so the whole popup can fade as one piece
-    local popup = Instance.new("CanvasGroup")
+    local popup = Instance.new("Frame")
     popup.Name = config.Name or "DropdownMenu"
     popup.Size = UDim2.fromOffset(self.Width, 0)
     popup.BackgroundColor3 = t.Background
-    popup.BackgroundTransparency = t.BackgroundTransparency
-    popup.GroupTransparency = 1
+    popup.BackgroundTransparency = 0.1
     popup.BorderSizePixel = 0
     popup.Active = true
+    popup.ClipsDescendants = true
     popup.Visible = false
-    popup.Parent = self.Host
+    popup.Parent = parent
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, t.Corner)
     corner.Parent = popup
 
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = t.Stroke
-    stroke.Transparency = t.StrokeTransparency
-    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    stroke.Parent = popup
-
     local padding = Instance.new("UIPadding")
     padding.PaddingTop = UDim.new(0, t.Padding / 2)
     padding.PaddingBottom = UDim.new(0, t.Padding / 2)
-    padding.PaddingLeft = UDim.new(0, t.SidePadding)
-    padding.PaddingRight = UDim.new(0, t.SidePadding)
+    padding.PaddingLeft = UDim.new(0, t.Padding)
+    padding.PaddingRight = UDim.new(0, t.Padding)
     padding.Parent = popup
 
     local scale = Instance.new("UIScale")
-    scale.Scale = t.OpenScale
+    scale.Scale = 0.95
     scale.Parent = popup
-
-    local pageLayout = Instance.new("UIPageLayout")
-    pageLayout.FillDirection = Enum.FillDirection.Horizontal
-    pageLayout.EasingStyle = Enum.EasingStyle.Quad
-    pageLayout.EasingDirection = Enum.EasingDirection.Out
-    pageLayout.TweenTime = t.PageTime
-    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    pageLayout.Circular = false
-    pageLayout.Padding = UDim.new(0, 5)
-    pageLayout.GamepadInputEnabled = false
-    pageLayout.ScrollWheelInputEnabled = false
-    pageLayout.TouchInputEnabled = false
-    pageLayout.Parent = popup
 
     self.Popup = popup
     self.Scale = scale
-    self.PageLayout = pageLayout
 
     local function createPage(order)
         local page = Instance.new("ScrollingFrame")
@@ -145,14 +88,15 @@ function DropdownMenu.new(parent, config, theme, deps)
         page.ScrollingDirection = Enum.ScrollingDirection.Y
         page.ScrollBarThickness = 3
         page.ScrollBarImageTransparency = 0.8
+        page.Visible = false
         page.Parent = popup
 
         local pagePadding = Instance.new("UIPadding")
-        pagePadding.PaddingRight = UDim.new(0, 6) -- room for the scrollbar
+        pagePadding.PaddingRight = UDim.new(0, 6)
         pagePadding.Parent = page
 
         local layout = Instance.new("UIListLayout")
-        layout.Padding = UDim.new(0, t.ItemGap)
+        layout.Padding = UDim.new(0, 5)
         layout.SortOrder = Enum.SortOrder.LayoutOrder
         layout.Parent = page
 
@@ -160,23 +104,21 @@ function DropdownMenu.new(parent, config, theme, deps)
     end
 
     self.MainPage, self.MainLayout = createPage(1)
-
-    local layouts = {self.MainLayout}
+    self.MainPage.Visible = true
 
     if self.HasChild then
         self.ChildPage, self.ChildLayout = createPage(2)
-        table.insert(layouts, self.ChildLayout)
 
         local back = Instance.new("TextButton")
         back.Size = UDim2.new(1, 0, 0, 20)
         back.LayoutOrder = -1
         back.BackgroundTransparency = 1
         back.AutoButtonColor = false
-        back.Text = "<"
+        back.Text = "< Back"
         back.TextXAlignment = Enum.TextXAlignment.Left
-        back.TextColor3 = t.Muted
+        back.TextColor3 = t.Foreground
         back.Font = t.Font
-        back.TextSize = t.TextSize
+        back.TextSize = 14
         back.Parent = self.ChildPage
         self.BackButton = back
 
@@ -192,25 +134,15 @@ function DropdownMenu.new(parent, config, theme, deps)
     end
 
     -- outside click closes it, clicks on the anchor are left to the anchor
-    table.insert(self.Connections, deps.OutsideClick.bind({popup, self.Anchor}, function()
-        if self.Open then
-            self:SetVisible(false)
-        end
+    table.insert(self.Connections, self.OutsideClick.bind({self.Popup, self.Anchor}, function()
+        self:SetVisible(false)
     end))
 
-    -- re-place whenever the content or the anchor changes
-    for _, layout in ipairs(layouts) do
+    for _, layout in ipairs({self.MainLayout, self.ChildLayout}) do
         table.insert(self.Connections, layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             self:_place(os.clock() - self.OpenedAt < 0.1)
         end))
     end
-
-    table.insert(self.Connections, self.Anchor:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-        self:_place(true)
-    end))
-    table.insert(self.Connections, self.Anchor:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        self:_place(true)
-    end))
 
     return self
 end
@@ -222,17 +154,17 @@ function DropdownMenu:_place(instant)
     local popup = self.Popup
     local layout = self.OnChild and self.ChildLayout or self.MainLayout
 
-    -- everything is measured against the host, so GUI insets cancel out
-    local screen = self.Host.AbsoluteSize
-    local origin = self.Anchor.AbsolutePosition - self.Host.AbsolutePosition
+    -- work in the container's space so positions line up
+    local base = self.Parent:IsA("GuiObject") and self.Parent.AbsolutePosition or Vector2.zero
+    local screen = self.Parent:IsA("GuiObject") and self.Parent.AbsoluteSize or workspace.CurrentCamera.ViewportSize
+
+    local origin = self.Anchor.AbsolutePosition - base
     local button = self.Anchor.AbsoluteSize
 
     local m, gap = t.Margin, t.Gap
+    local content = layout.AbsoluteContentSize.Y + t.Padding
+    local height = math.min(content, screen.Y - m * 2)
     local width = self.Width
-
-    -- AbsoluteContentSize is scaled by the popup's UIScale, so undo that
-    local content = layout.AbsoluteContentSize.Y / self.Scale.Scale + t.Padding
-    local height = round(math.min(content, screen.Y - m * 2))
 
     local top, bottom = origin.Y, origin.Y + button.Y
     local left, right = origin.X, origin.X + button.X
@@ -270,28 +202,23 @@ function DropdownMenu:_place(instant)
         end
     end
 
-    local x = chosen and round(chosen.X) or 0
-    local y = chosen and round(chosen.Y) or 0
-
     popup.AnchorPoint = chosen and Vector2.zero or Vector2.new(0.5, 0.5)
 
     local size = UDim2.fromOffset(width, height)
-    local position = chosen and UDim2.fromOffset(x, y) or UDim2.fromScale(0.5, 0.5)
-
-    local last = self.Last
-    local changed = last.Height ~= height or last.X ~= x or last.Y ~= y or last.Centered ~= (chosen == nil)
+    local position = chosen and UDim2.fromOffset(chosen.X, chosen.Y) or UDim2.fromScale(0.5, 0.5)
 
     if instant then
         popup.Size = size
         popup.Position = position
-    elseif changed then
+    elseif size ~= self.LastSize or position ~= self.LastPosition then
         TweenService:Create(popup, TweenInfo.new(t.TweenTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
             Size = size,
             Position = position,
         }):Play()
     end
 
-    last.Height, last.X, last.Y, last.Centered = height, x, y, (chosen == nil)
+    self.LastSize = size
+    self.LastPosition = position
 end
 
 function DropdownMenu:SetVisible(state)
@@ -301,32 +228,25 @@ function DropdownMenu:SetVisible(state)
     if state == self.Open then return end
 
     self.Open = state
-    self.Token = self.Token + 1
-    local token = self.Token
-    local t = self.Theme
 
     if state then
         self.OpenedAt = os.clock()
         self.Popup.Visible = true
         self:_place(true)
-
-        local info = TweenInfo.new(t.TweenTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-        TweenService:Create(self.Scale, info, {Scale = 1}):Play()
-        TweenService:Create(self.Popup, info, {GroupTransparency = 0}):Play()
     else
         self.ClosedAt = os.clock()
+    end
 
-        local info = TweenInfo.new(t.TweenTime, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-        TweenService:Create(self.Scale, info, {Scale = t.OpenScale}):Play()
-        TweenService:Create(self.Popup, info, {GroupTransparency = 1}):Play()
+    self.Modal.toggle(self.ModalCfg, nil, self.Scale, state)
 
-        -- hide after the fade, and go back to the main page
-        task.delay(t.TweenTime, function()
-            if self.Destroyed or self.Token ~= token then return end
-
-            self.Popup.Visible = false
-            if self.OnChild then
-                self:ShowMain()
+    if not state then
+        -- hide after the fade, and return to the main page
+        task.delay(0.25, function()
+            if not self.Open then
+                self.Popup.Visible = false
+                if self.OnChild then
+                    self:ShowMain()
+                end
             end
         end)
     end
@@ -348,26 +268,28 @@ function DropdownMenu:ShowChild(title)
     if not self.HasChild then return end
 
     self.OnChild = true
-    self.BackButton.Text = "<  " .. (title or "")
-    self.PageLayout:JumpTo(self.ChildPage)
+    self.BackButton.Text = "< " .. (title or "")
+    self.MainPage.Visible = false
+    self.ChildPage.Visible = true
     self:_place(false)
 end
 
 function DropdownMenu:ShowMain()
     self.OnChild = false
-    self.PageLayout:JumpTo(self.MainPage)
+    if self.ChildPage then
+        self.ChildPage.Visible = false
+    end
+    self.MainPage.Visible = true
     self.OnMain()
     self:_place(false)
 end
 
-function DropdownMenu:_item(page, text, callback, closes)
+function DropdownMenu:AddButton(text, callback, page)
     local t = self.Theme
-
-    self.Orders[page] = (self.Orders[page] or 0) + 1
+    page = page or self.MainPage
 
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, t.ItemHeight)
-    btn.LayoutOrder = self.Orders[page]
     btn.BackgroundColor3 = t.Hover
     btn.BackgroundTransparency = 1
     btn.AutoButtonColor = false
@@ -375,7 +297,7 @@ function DropdownMenu:_item(page, text, callback, closes)
     btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.TextColor3 = t.Foreground
     btn.Font = t.Font
-    btn.TextSize = t.TextSize
+    btn.TextSize = 14
     btn.Parent = page
 
     local corner = Instance.new("UICorner")
@@ -387,48 +309,28 @@ function DropdownMenu:_item(page, text, callback, closes)
     pad.PaddingRight = UDim.new(0, 8)
     pad.Parent = btn
 
-    local info = TweenInfo.new(t.HoverTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
     btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, info, {BackgroundTransparency = 0}):Play()
+        btn.BackgroundTransparency = 0
     end)
     btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, info, {BackgroundTransparency = 1}):Play()
+        btn.BackgroundTransparency = 1
     end)
     btn.MouseButton1Click:Connect(function()
-        if closes then
-            self:SetVisible(false)
-        end
         if callback then callback() end
     end)
 
     return btn
 end
 
-function DropdownMenu:AddButton(text, callback, page)
-    return self:_item(page or self.MainPage, text, callback, self.CloseOnClick)
-end
-
--- build(add) fills the submenu page; add(text, callback) adds a button to it
+-- build(addChild) fills the submenu page; addChild(text, callback) adds a button to it
 function DropdownMenu:AddSubmenu(text, build)
-    local btn = self:_item(self.MainPage, text, function()
+    local btn = self:AddButton(text .. " >", function()
         self:ShowChild(text)
-    end, false)
-
-    local chevron = Instance.new("TextLabel")
-    chevron.AnchorPoint = Vector2.new(1, 0.5)
-    chevron.Position = UDim2.new(1, 0, 0.5, 0)
-    chevron.Size = UDim2.fromOffset(16, 16)
-    chevron.BackgroundTransparency = 1
-    chevron.Text = ">"
-    chevron.Font = self.Theme.Font
-    chevron.TextSize = self.Theme.TextSize
-    chevron.TextColor3 = self.Theme.Muted
-    chevron.Parent = btn
+    end)
 
     if build and self.HasChild then
         build(function(childText, callback)
-            return self:_item(self.ChildPage, childText, callback, self.CloseOnClick)
+            return self:AddButton(childText, callback, self.ChildPage)
         end)
     end
 
@@ -436,7 +338,6 @@ function DropdownMenu:AddSubmenu(text, build)
 end
 
 function DropdownMenu:Destroy()
-    self.Destroyed = true
     for _, conn in ipairs(self.Connections) do
         conn:Disconnect()
     end
