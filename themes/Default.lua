@@ -1,4 +1,13 @@
 return {
+    Checkbox = {
+        Box = Color3.fromRGB(20, 20, 20),
+        Border = Color3.fromRGB(60, 60, 60),
+        Checked = Color3.fromRGB(90, 200, 120),
+        Check = Color3.fromRGB(13, 13, 13),
+        Size = 20,
+        Corner = 6,
+        TweenTime = 0.15,
+    },
     Switch = {
         Track = Color3.fromRGB(45, 45, 45),
         TrackOn = Color3.fromRGB(90, 200, 120),
