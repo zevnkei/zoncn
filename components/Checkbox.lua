@@ -8,6 +8,7 @@ local DEFAULT_THEME = {
     Border = Color3.fromRGB(60, 60, 60),
     Checked = Color3.fromRGB(90, 200, 120),
     Check = Color3.fromRGB(13, 13, 13),
+    CheckImage = "rbxassetid://93898873302694", -- built-in check, used until / unless the icon pack loads
     Size = 20,
     Corner = 6,
     TweenTime = 0.15,
@@ -17,7 +18,7 @@ function Checkbox.new(parent, config, theme, deps)
     config = config or {}
     local Spring = deps and deps.Spring
     assert(Spring, "Checkbox needs deps.Spring")
-    local Icons = deps.Icons -- optional, falls back to a text check
+    local Icons = deps.Icons -- optional, the built-in check image is used without it
 
     local t = {}
     for k, v in pairs(DEFAULT_THEME) do t[k] = v end
@@ -52,18 +53,6 @@ function Checkbox.new(parent, config, theme, deps)
     local boxScale = Instance.new("UIScale")
     boxScale.Parent = box
 
-    -- the check mark lives in a glyph frame so one UIScale pops icon and fallback together
-    local glyph = Instance.new("Frame")
-    glyph.AnchorPoint = Vector2.new(0.5, 0.5)
-    glyph.Position = UDim2.fromScale(0.5, 0.5)
-    glyph.Size = UDim2.fromScale(1, 1)
-    glyph.BackgroundTransparency = 1
-    glyph.BorderSizePixel = 0
-    glyph.Parent = box
-
-    local glyphScale = Instance.new("UIScale")
-    glyphScale.Parent = glyph
-
     local icon = Instance.new("ImageLabel")
     icon.AnchorPoint = Vector2.new(0.5, 0.5)
     icon.Position = UDim2.fromScale(0.5, 0.5)
@@ -71,26 +60,21 @@ function Checkbox.new(parent, config, theme, deps)
     icon.BackgroundTransparency = 1
     icon.BorderSizePixel = 0
     icon.ImageColor3 = t.Check
-    icon.Parent = glyph
+    icon.Parent = box
 
-    local fallback = Instance.new("TextLabel")
-    fallback.Size = UDim2.fromScale(1, 1)
-    fallback.BackgroundTransparency = 1
-    fallback.Font = Enum.Font.GothamBold
-    fallback.Text = "✓"
-    fallback.TextSize = math.floor(t.Size * 0.7)
-    fallback.TextColor3 = t.Check
-    fallback.Visible = false
-    fallback.Parent = glyph
+    -- pops in and out
+    local iconScale = Instance.new("UIScale")
+    iconScale.Parent = icon
+
+    -- the default check shows instantly, a custom icon waits for the pack
+    local path = config.Icon or "lucide/check"
+    icon.Image = (config.Icon and Icons) and "" or t.CheckImage
 
     if Icons then
-        Icons.apply(icon, "Image", config.Icon or "lucide/check")
-        -- if the icon pack never loaded, the text check takes over
         Icons.onReady(function()
-            fallback.Visible = icon.Image == ""
+            local image = Icons.resolve(path)
+            icon.Image = image ~= "" and image or t.CheckImage
         end)
-    else
-        fallback.Visible = true
     end
 
     -- check mark size: 0 = hidden, 1 = shown (overshoots a little for the pop)
@@ -99,8 +83,8 @@ function Checkbox.new(parent, config, theme, deps)
     self.Press = Spring.new(1, 380, 22)
 
     self.Pop.OnChanged = function(a)
-        glyphScale.Scale = math.max(a, 0)
-        glyph.Visible = a > 0.001
+        iconScale.Scale = math.max(a, 0)
+        icon.Visible = a > 0.001
     end
     self.Press.OnChanged = function(s)
         boxScale.Scale = s
