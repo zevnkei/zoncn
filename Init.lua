@@ -19,7 +19,7 @@ local deps = {
 
 local Components = {}
 
-for _, name in ipairs({"Switch", "Checkbox", "Button", "Dialog", "ColorPicker", "Slider", "DropdownMenu", "Input", "TextArea", "Segment", "Toast", "Label"}) do
+for _, name in ipairs({"Switch", "Checkbox", "Button", "Dialog", "ColorPicker", "Toast", "Slider", "DropdownMenu", "Input", "TextArea", "Segment", "Toast", "Label"}) do
     local mod = load("components/" .. name .. ".lua")
 
     Components[name] = {
