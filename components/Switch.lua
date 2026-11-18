@@ -21,7 +21,7 @@ function Switch.new(parent, config, theme, deps)
     config = config or {}
     local Spring = deps and deps.Spring
     assert(Spring, "Switch needs deps.Spring")
-    local Icons = deps.Icons
+    local Icons = deps.Icons -- optional
 
     local t = {}
     for k, v in pairs(DEFAULT_THEME) do t[k] = v end
@@ -54,7 +54,7 @@ function Switch.new(parent, config, theme, deps)
     local knob = Instance.new("Frame")
     knob.Size = UDim2.fromOffset(t.KnobSize, t.KnobSize)
     knob.BorderSizePixel = 0
-    knob.BackgroundColor3 = t.Knob
+    knob.BackgroundColor3 = self.State and (t.KnobOn or t.Knob) or t.Knob
     knob.Parent = track
 
     local knobCorner = Instance.new("UICorner")
@@ -163,6 +163,9 @@ function Switch:Set(state, silent)
     local info = TweenInfo.new(self.Theme.TweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     TweenService:Create(self.Track, info, {
         BackgroundColor3 = self.State and self.Theme.TrackOn or self.Theme.Track,
+    }):Play()
+    TweenService:Create(self.Knob, info, {
+        BackgroundColor3 = self.State and (self.Theme.KnobOn or self.Theme.Knob) or self.Theme.Knob,
     }):Play()
 
     if not silent then
