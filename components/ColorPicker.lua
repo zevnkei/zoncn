@@ -19,7 +19,7 @@ local DEFAULT_THEME = {
     SwatchHeight = 20,
     WheelSize = 160,
     BarWidth = 28,
-    PresetRows = 2,
+    PresetRows = 2, 
     PresetGap = 6,
     Checker = "rbxassetid://121484455191370",
     Wheel = "rbxassetid://6020299385",
@@ -94,7 +94,7 @@ local function isPress(input)
 end
 
 -- config: Name, Title, Default (Color3), Opacity (0 to 1), Presets (Color3 or hex strings),
---         Columns, Width, Callback
+-- Columns, Width, Callback
 -- Callback(color, opacity) runs when you press Confirm (or on :Set)
 function ColorPicker.new(parent, config, theme, deps)
     config = config or {}
@@ -127,7 +127,6 @@ function ColorPicker.new(parent, config, theme, deps)
         root = parent:FindFirstAncestorWhichIsA("ScreenGui") or parent
     end
 
-    --// Swatch (the thing you click)
     local swatch = Instance.new("CanvasGroup")
     swatch.Name = config.Name or "ColorPicker"
     swatch.Size = UDim2.fromOffset(t.SwatchWidth, t.SwatchHeight)
@@ -161,7 +160,6 @@ function ColorPicker.new(parent, config, theme, deps)
     swatchButton.ZIndex = 3
     swatchButton.Parent = swatch
 
-    --// Modal
     local overlay = Instance.new("Frame")
     overlay.Size = UDim2.fromScale(1, 1)
     overlay.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -212,7 +210,6 @@ function ColorPicker.new(parent, config, theme, deps)
     title.TextTransparency = 0.1
     title.Parent = panel
 
-    --// Wheel, brightness bar, alpha bar
     local row = Instance.new("Frame")
     row.LayoutOrder = 2
     row.Size = UDim2.new(1, 0, 0, t.WheelSize)
@@ -460,6 +457,11 @@ function ColorPicker.new(parent, config, theme, deps)
     self.OldColor = oldColor
     self.Hex = hex
 
+    -- the library recolors controls when its theme changes, these hold real colors or images and must stay as they are
+    for _, object in {swatchChecker, swatchColor, wheel, wheelMarker, bright, alpha, alphaColor, previewChecker, newColor, oldColor} do
+        object:SetAttribute("NoTheme", true)
+    end
+
     --// Marker springs: positions as fractions, so they stay right at any UIScale
     self.WheelX = Spring.new(0.5, 420, 34)
     self.WheelY = Spring.new(0.5, 420, 34)
@@ -646,7 +648,6 @@ function ColorPicker:Toggle()
     self:SetVisible(nil)
 end
 
--- color: Color3, opacity: 0 (clear) to 1 (solid)
 function ColorPicker:Set(color, opacity, silent)
     if typeof(color) == "Color3" then
         self.Color = color
