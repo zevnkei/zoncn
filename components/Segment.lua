@@ -3,6 +3,14 @@ local TweenService = game:GetService("TweenService")
 local Segment = {}
 Segment.__index = Segment
 
+local function setFont(label, font)
+    if typeof(font) == "Font" then
+        label.FontFace = font
+    else
+        label.Font = font
+    end
+end
+
 local DEFAULT_THEME = {
     Track = Color3.fromRGB(13, 13, 13),
     TrackTransparency = 0.3,
@@ -19,7 +27,6 @@ local DEFAULT_THEME = {
     TweenTime = 0.2,
 }
 
--- jump a spring straight to a value (no motion)
 local function snap(spring, value)
     spring.Value = value
     spring.Target = value
@@ -35,8 +42,6 @@ local function apply(obj, property, value, info, instant)
     end
 end
 
--- options: "A", or {Value = "a", Text = "A", Icon = "lucide/sun"}
--- icon only, text only, or both
 local function normalize(option)
     if type(option) == "table" then
         return {
@@ -63,8 +68,8 @@ function Segment.new(parent, config, theme, deps)
     self.Multi = config.Multi or false
     self.Callback = config.Callback or function() end
     self.Options = {}
-    self.Buttons = {}   -- [Value] = {Button, Icon, Label}
-    self.Selected = {}  -- [Value] = true
+    self.Buttons = {}
+    self.Selected = {}
     self.Value = nil
     self.Connections = {}
     self.Info = TweenInfo.new(t.TweenTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
@@ -73,7 +78,6 @@ function Segment.new(parent, config, theme, deps)
         table.insert(self.Options, normalize(option))
     end
 
-    -- AutoWidth: hugs its options instead of filling the row
     local hug = config.AutoWidth or false
 
     local root = Instance.new("Frame")
@@ -121,7 +125,6 @@ function Segment.new(parent, config, theme, deps)
 
         self.Pill = pill
 
-        -- pill position and width as fractions of the layer, so they stay right at any scale
         self.PillX = Spring.new(0, 260, 22)
         self.PillW = Spring.new(0, 260, 22)
 
@@ -209,7 +212,7 @@ function Segment.new(parent, config, theme, deps)
             label.Size = UDim2.new(0, 0, 0, 20)
             label.AutomaticSize = Enum.AutomaticSize.X
             label.BackgroundTransparency = 1
-            label.Font = t.Font
+            setFont(label, t.Font)
             label.Text = option.Text
             label.TextSize = t.TextSize
             label.TextColor3 = t.Muted
@@ -264,7 +267,7 @@ function Segment:_movePill(instant)
     local layerWidth = self.Layer.AbsoluteSize.X
     local button = parts.Button
     if layerWidth <= 0 or button.AbsoluteSize.X <= 0 then
-        return -- not laid out yet, the size signal calls us again
+        return
     end
 
     local x = (button.AbsolutePosition.X - self.Layer.AbsolutePosition.X) / layerWidth
