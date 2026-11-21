@@ -3,6 +3,14 @@ local TweenService = game:GetService("TweenService")
 local DropdownMenu = {}
 DropdownMenu.__index = DropdownMenu
 
+local function setFont(label, font)
+    if typeof(font) == "Font" then
+        label.FontFace = font
+    else
+        label.Font = font
+    end
+end
+
 local DEFAULT_THEME = {
     Background = Color3.fromRGB(20, 20, 20),
     Foreground = Color3.fromRGB(240, 245, 240),
@@ -117,7 +125,7 @@ function DropdownMenu.new(parent, config, theme, deps)
         back.Text = "< Back"
         back.TextXAlignment = Enum.TextXAlignment.Left
         back.TextColor3 = t.Foreground
-        back.Font = t.Font
+        setFont(back, t.Font)
         back.TextSize = 14
         back.Parent = self.ChildPage
         self.BackButton = back
@@ -296,7 +304,7 @@ function DropdownMenu:AddButton(text, callback, page)
     btn.Text = text or "Button"
     btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.TextColor3 = t.Foreground
-    btn.Font = t.Font
+    setFont(btn, t.Font)
     btn.TextSize = 14
     btn.Parent = page
 
