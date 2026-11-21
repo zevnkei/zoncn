@@ -14,11 +14,11 @@ local DEFAULT_THEME = {
     Muted = Color3.fromRGB(150, 150, 150),
     ActionBackground = Color3.fromRGB(240, 245, 240),
     ActionText = Color3.fromRGB(13, 13, 13),
-    Font = Enum.Font.GothamSemibold, -- Enum.Font or a Font object
-    DescFont = Enum.Font.Gotham,
+    Font = Enum.Font.GothamSemibold,
+    DescFont = Enum.Font.GothamMedium,
     TitleSize = 14,
     DescSize = 13,
-    Width = 356,
+    Width = 260,
     Corner = 12,
     Padding = 16,
     IconSize = 16,
@@ -28,7 +28,7 @@ local DEFAULT_THEME = {
     Margin = 24,
     Gap = 14,
     Peek = 12,
-    Max = 3,
+    Max = 3, 
     Duration = 5,
     TweenTime = 0.35,
     Types = {
@@ -77,10 +77,10 @@ local function getHost(parent)
         root = parent:FindFirstAncestorWhichIsA("ScreenGui") or parent
     end
 
-    local host = root:FindFirstChild("zoncn-toasts")
+    local host = root:FindFirstChild("ZoncnToasts")
     if not host then
         host = Instance.new("Frame")
-        host.Name = "zoncn-toasts"
+        host.Name = "ZoncnToasts"
         host.Size = UDim2.fromScale(1, 1)
         host.BackgroundTransparency = 1
         host.BorderSizePixel = 0
@@ -109,7 +109,7 @@ function Toast.new(parent, config, theme, deps)
     self.Top = position:find("Top") ~= nil
     self.Side = position:find("Left") and "Left" or (position:find("Right") and "Right" or "Center")
 
-    self.Active = {}
+    self.Active = {}      -- oldest first
     self.Hovered = 0
     self.Expanded = false
     self.Loop = nil
