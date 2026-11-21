@@ -3,10 +3,19 @@ local TweenService = game:GetService("TweenService")
 local Button = {}
 Button.__index = Button
 
+local function setFont(label, font)
+    if typeof(font) == "Font" then
+        label.FontFace = font
+    else
+        label.Font = font
+    end
+end
+
 local DEFAULT_THEME = {
     Background = Color3.fromRGB(13, 13, 13),
     Hover = Color3.fromRGB(28, 28, 28),
     Text = Color3.fromRGB(240, 245, 240),
+    Font = Enum.Font.GothamBold,
     Height = 36,
     TweenTime = 0.12,
 }
@@ -25,7 +34,7 @@ function Button.new(parent, config, theme)
     local button = Instance.new("TextButton")
     button.Name = config.Name or "Button"
     button.Text = config.Name or "Button"
-    button.Font = Enum.Font.GothamBold
+    setFont(button, t.Font)
     button.TextSize = 16
     button.TextColor3 = t.Text
     button.AutoButtonColor = false
