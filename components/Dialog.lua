@@ -3,11 +3,20 @@ local TweenService = game:GetService("TweenService")
 local Dialog = {}
 Dialog.__index = Dialog
 
+local function setFont(label, font)
+    if typeof(font) == "Font" then
+        label.FontFace = font
+    else
+        label.Font = font
+    end
+end
+
 local DEFAULT_THEME = {
     Background = Color3.fromRGB(20, 20, 20),
     Foreground = Color3.fromRGB(240, 245, 240),
     Muted = Color3.fromRGB(150, 150, 150),
     Font = Enum.Font.GothamSemibold,
+    DescFont = Enum.Font.GothamMedium,
     Corner = 20,
     Width = 300,
     Gap = 10,
@@ -116,7 +125,7 @@ function Dialog.new(parent, config, theme, deps)
     title.Size = UDim2.new(1, 0, 0, 0)
     title.AutomaticSize = Enum.AutomaticSize.Y
     title.BackgroundTransparency = 1
-    title.Font = t.Font
+    setFont(title, t.Font)
     title.Text = self.Title or ""
     title.TextSize = 18
     title.TextWrapped = true
@@ -129,7 +138,7 @@ function Dialog.new(parent, config, theme, deps)
     desc.Size = UDim2.new(1, 0, 0, 0)
     desc.AutomaticSize = Enum.AutomaticSize.Y
     desc.BackgroundTransparency = 1
-    desc.Font = t.Font
+    setFont(desc, t.DescFont)
     desc.Text = self.Description or ""
     desc.TextSize = 14
     desc.TextWrapped = true
@@ -213,7 +222,6 @@ function Dialog.new(parent, config, theme, deps)
         table.insert(self.Connections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(queue))
     end
 
-    -- clicking the dim area closes it
     table.insert(self.Connections, deps.OutsideClick.bind({canvas}, function()
         if self.IsOpen then
             self:Close()
