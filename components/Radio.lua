@@ -3,20 +3,28 @@ local TweenService = game:GetService("TweenService")
 local Radio = {}
 Radio.__index = Radio
 
+local function setFont(label, font)
+    if typeof(font) == "Font" then
+        label.FontFace = font
+    else
+        label.Font = font
+    end
+end
+
 local DEFAULT_THEME = {
     Border = Color3.fromRGB(150, 150, 150),
     Checked = Color3.fromRGB(90, 200, 120),
     Foreground = Color3.fromRGB(240, 245, 240),
     Muted = Color3.fromRGB(150, 150, 150),
     Font = Enum.Font.GothamSemibold,
-    DescFont = Enum.Font.Gotham,
+    DescFont = Enum.Font.GothamMedium,
     TextSize = 14,
     DescSize = 13,
-    Size = 18,       -- the ring
-    Thickness = 1.5, -- ring border
+    Size = 18,
+    Thickness = 1.5,
     DotSize = 8,
-    Gap = 12,        -- between options
-    TextGap = 10,    -- ring to text
+    Gap = 12,
+    TextGap = 10,
     TweenTime = 0.15,
 }
 
@@ -56,7 +64,7 @@ function Radio.new(parent, config, theme, deps)
     self.Theme = t
     self.Callback = config.Callback or function() end
     self.Options = {}
-    self.Entries = {}
+    self.Entries = {} -- [Value] = {Stroke, Pop}
     self.Value = nil
     self.Connections = {}
     self.Info = TweenInfo.new(t.TweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -98,7 +106,6 @@ function Radio.new(parent, config, theme, deps)
         rowLayout.SortOrder = Enum.SortOrder.LayoutOrder
         rowLayout.Parent = row
 
-        -- the stroke draws outside its frame, so the ring is a little smaller than its slot
         local slot = Instance.new("Frame")
         slot.LayoutOrder = 1
         slot.Size = UDim2.fromOffset(t.Size, t.Size)
@@ -141,7 +148,6 @@ function Radio.new(parent, config, theme, deps)
         dotScale.Scale = 0
         dotScale.Parent = dot
 
-        -- title with the description under it, filling what the ring leaves free
         local text = Instance.new("Frame")
         text.LayoutOrder = 2
         text.Size = UDim2.new(0, 0, 0, 0)
@@ -164,7 +170,7 @@ function Radio.new(parent, config, theme, deps)
         title.Size = UDim2.new(1, 0, 0, 0)
         title.AutomaticSize = Enum.AutomaticSize.Y
         title.BackgroundTransparency = 1
-        title.Font = t.Font
+        setFont(title, t.Font)
         title.Text = option.Title
         title.TextSize = t.TextSize
         title.TextColor3 = t.Foreground
@@ -179,7 +185,7 @@ function Radio.new(parent, config, theme, deps)
             desc.Size = UDim2.new(1, 0, 0, 0)
             desc.AutomaticSize = Enum.AutomaticSize.Y
             desc.BackgroundTransparency = 1
-            desc.Font = t.DescFont
+            setFont(desc, t.DescFont)
             desc.Text = option.Desc
             desc.TextSize = t.DescSize
             desc.TextColor3 = t.Muted
