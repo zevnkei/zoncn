@@ -4,6 +4,14 @@ local UserInputService = game:GetService("UserInputService")
 local ColorPicker = {}
 ColorPicker.__index = ColorPicker
 
+local function setFont(label, font)
+    if typeof(font) == "Font" then
+        label.FontFace = font
+    else
+        label.Font = font
+    end
+end
+
 local DEFAULT_THEME = {
     Background = Color3.fromRGB(20, 20, 20),
     Field = Color3.fromRGB(13, 13, 13),
@@ -19,7 +27,7 @@ local DEFAULT_THEME = {
     SwatchHeight = 20,
     WheelSize = 160,
     BarWidth = 28,
-    PresetRows = 2, 
+    PresetRows = 2,
     PresetGap = 6,
     Checker = "rbxassetid://121484455191370",
     Wheel = "rbxassetid://6020299385",
@@ -69,7 +77,6 @@ local function addStroke(obj, color, thickness, transparency)
     return stroke
 end
 
--- jump a spring straight to a value (no motion)
 local function snap(spring, value)
     spring.Value = value
     spring.Target = value
@@ -77,7 +84,6 @@ local function snap(spring, value)
     if spring.OnChanged then spring.OnChanged(value) end
 end
 
--- Color3, or a "#RRGGBB" string
 local function toColor(value)
     if typeof(value) == "Color3" then
         return value
@@ -94,7 +100,6 @@ local function isPress(input)
 end
 
 -- config: Name, Title, Default (Color3), Opacity (0 to 1), Presets (Color3 or hex strings),
--- Columns, Width, Callback
 -- Callback(color, opacity) runs when you press Confirm (or on :Set)
 function ColorPicker.new(parent, config, theme, deps)
     config = config or {}
@@ -117,11 +122,9 @@ function ColorPicker.new(parent, config, theme, deps)
     self.Connections = {}
     self.Info = TweenInfo.new(t.TweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-    -- staged values: what the picker is showing before you confirm
     self.SH, self.SS, self.SV = self.Color:ToHSV()
     self.SA = self.Opacity
 
-    -- the overlay has to cover the whole screen, so it goes in the root ScreenGui
     local root = parent
     if not parent:IsA("ScreenGui") then
         root = parent:FindFirstAncestorWhichIsA("ScreenGui") or parent
@@ -203,7 +206,7 @@ function ColorPicker.new(parent, config, theme, deps)
     title.Size = UDim2.new(1, 0, 0, 0)
     title.AutomaticSize = Enum.AutomaticSize.Y
     title.BackgroundTransparency = 1
-    title.Font = t.Font
+    setFont(title, t.Font)
     title.Text = config.Title or config.Name or "Color"
     title.TextSize = 18
     title.TextColor3 = t.Foreground
@@ -281,7 +284,6 @@ function ColorPicker.new(parent, config, theme, deps)
     alphaGradient.Transparency = NumberSequence.new(0, 1)
     alphaGradient.Parent = alphaColor
 
-    -- the bars' handles are a little wider than the bars
     local function createHandle(bar)
         local handle = Instance.new("Frame")
         handle.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -352,7 +354,6 @@ function ColorPicker.new(parent, config, theme, deps)
         end
     end
 
-    --// Bottom row: preview, hex, cancel, confirm
     local bottom = Instance.new("Frame")
     bottom.LayoutOrder = 4
     bottom.Size = UDim2.new(1, 0, 0, 32)
@@ -367,7 +368,6 @@ function ColorPicker.new(parent, config, theme, deps)
     bottomLayout.SortOrder = Enum.SortOrder.LayoutOrder
     bottomLayout.Parent = bottom
 
-    -- new color on the left half, the color you started with on the right
     local preview = Instance.new("CanvasGroup")
     preview.LayoutOrder = 1
     preview.Size = UDim2.fromOffset(52, 30)
@@ -407,7 +407,7 @@ function ColorPicker.new(parent, config, theme, deps)
     hex.BackgroundColor3 = t.Field
     hex.BorderSizePixel = 0
     hex.ClearTextOnFocus = false
-    hex.Font = t.Font
+    setFont(hex, t.Font)
     hex.PlaceholderText = "#RRGGBB"
     hex.PlaceholderColor3 = t.Muted
     hex.TextSize = 13
@@ -421,7 +421,7 @@ function ColorPicker.new(parent, config, theme, deps)
     cancel.Size = UDim2.fromOffset(buttonWidth, 30)
     cancel.BackgroundTransparency = 1
     cancel.AutoButtonColor = false
-    cancel.Font = t.Font
+    setFont(cancel, t.Font)
     cancel.Text = "Cancel"
     cancel.TextSize = 14
     cancel.TextColor3 = t.Foreground
@@ -435,7 +435,7 @@ function ColorPicker.new(parent, config, theme, deps)
     confirm.BackgroundColor3 = t.Foreground
     confirm.BorderSizePixel = 0
     confirm.AutoButtonColor = false
-    confirm.Font = t.Font
+    setFont(confirm, t.Font)
     confirm.Text = "Confirm"
     confirm.TextSize = 14
     confirm.TextColor3 = t.Field
@@ -648,6 +648,7 @@ function ColorPicker:Toggle()
     self:SetVisible(nil)
 end
 
+-- color: Color3, opacity: 0 (clear) to 1 (solid)
 function ColorPicker:Set(color, opacity, silent)
     if typeof(color) == "Color3" then
         self.Color = color
